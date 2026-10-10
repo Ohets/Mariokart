@@ -1,1 +1,81 @@
-
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Kart Racing 3D – 40 Missionen</title>
+<style>
+:root{--bg:#10172b;--panel:#182541;--gold:#ffd44d;--cyan:#5ce1e6;--pink:#ff5c8a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#fff;font-family:system-ui,Arial;overflow:hidden}button{border:0;border-radius:12px;padding:11px 14px;font-weight:800;background:var(--gold);color:#172039;cursor:pointer}button:disabled{opacity:.4;cursor:not-allowed}.hidden{display:none!important}
+#game{position:fixed;inset:0;width:100%;height:100%;display:block;background:#82d9fa}
+#hud{position:fixed;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;gap:8px;pointer-events:none;text-shadow:0 2px 4px #000;font-weight:900}#hud>div{background:#10172bd9;padding:8px 12px;border-radius:12px}
+#menu{position:fixed;inset:0;overflow:auto;background:linear-gradient(140deg,#10172bf5,#172f4ff2);padding:16px;z-index:5}
+header{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}h1{margin:5px 0;color:var(--gold);font-size:clamp(24px,5vw,40px)}h2{margin:8px 0}p{color:#d3e0f8}.stats{background:#253452;padding:10px 14px;border-radius:12px;font-weight:900}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:15px 0}.tab{background:#344765;color:white}.tab.active{background:var(--cyan);color:#102036}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:10px}.card{background:var(--panel);border:1px solid #34496d;border-radius:14px;padding:12px;min-height:120px}.card strong{display:block;color:var(--gold);margin-bottom:5px}.card small{display:block;color:#c2d3ef;margin:5px 0 10px}.card button{width:100%;padding:9px}
+#racePanel{position:fixed;inset:0;z-index:4;pointer-events:none}#racePanel button{pointer-events:auto}#message{position:absolute;top:35%;left:50%;transform:translate(-50%,-50%);background:#10172bee;border:2px solid var(--gold);border-radius:18px;padding:22px;text-align:center;width:min(90%,420px);pointer-events:auto}#message h2{color:var(--gold)}
+#controls{position:fixed;bottom:18px;left:0;right:0;display:flex;justify-content:space-between;padding:0 18px;pointer-events:none;z-index:3}#controls button{pointer-events:auto;width:76px;height:68px;border-radius:20px;background:#10172bc9;color:white;border:2px solid #ffffff88;font-size:23px;touch-action:none}#controls .pedals{display:flex;gap:10px}#controls .pedals button{background:#d84852}#controls .pedals button:first-child{background:#287cda}
+#hint{position:fixed;bottom:100px;left:0;right:0;text-align:center;color:white;text-shadow:0 2px 5px #000;pointer-events:none;font-size:13px}
+@media(min-width:800px){#menu{padding:24px 5vw}.grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud" class="hidden"><div id="hudLevel">Mission 1/40</div><div id="hudTime">Zeit: 0.0</div><div id="hudLap">Runde 1/2</div><div id="hudCredits">🪙 0</div></div>
+<div id="menu">
+<header><div><h1>🏁 KART RACING 3D</h1><div>40 Missionen · 20 Karts · Sammle Credits und werde Rennchampion!</div></div><div class="stats">🪙 Credits: <span id="credits">0</span></div></header>
+<div class="tabs"><button class="tab active" data-tab="missions">🏆 Missionen</button><button class="tab" data-tab="cars">🚗 Auto-Shop</button><button class="tab" data-tab="creditsTab">🪙 Credits kaufen</button></div>
+<section id="missions"><h2>Mission auswählen</h2><p>Gewinne das Rennen, um Credits zu verdienen. Nicht geschaffte Missionen kannst du mit Credits freischalten.</p><div id="missionGrid" class="grid"></div></section>
+<section id="cars" class="hidden"><h2>🚘 Deine Garage</h2><p>Jedes Kart hat eigene Geschwindigkeit und Handling-Werte. Kaufe ein Kart und wähle es aus.</p><div id="carGrid" class="grid"></div></section>
+<section id="creditsTab" class="hidden"><h2>🪙 Credits</h2><p>Du kannst über PayPal spenden. Wichtig: Das Spiel kann eine Zahlung nicht selbst prüfen und schreibt nach der Rückkehr deshalb keine Credits automatisch gut. Verwende nur einen echten, von dir eingerichteten Zahlungs-/Gutschriftprozess für bezahlte Credits.</p><div class="card"><strong>PayPal – Credits unterstützen</strong><small>Öffnet deine PayPal-Spendenseite in einem neuen Tab.</small><button id="paypal">PayPal öffnen ↗</button></div><p>Aktueller Kontostand: <b id="credits2">0</b> Credits</p><small>Der Spielstand und Credits werden auf diesem Gerät gespeichert (localStorage).</small></section>
+</div>
+<div id="racePanel" class="hidden"><div id="message" class="hidden"><h2 id="msgTitle"></h2><p id="msgText"></p><div id="msgButtons" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap"></div></div></div>
+<div id="controls" class="hidden"><div><button id="left">◀</button> <button id="right">▶</button></div><div class="pedals"><button id="brake">▼</button><button id="gas">▲</button></div></div><div id="hint" class="hidden">Links/Rechts lenken · ▲ Gas · ▼ Bremse · Am Computer: ← → ↑ ↓</div>
+<script>
+(()=>{
+const PAYPAL='https://www.paypal.com/donate/?hosted_button_id=HF3HYZ9J3QV4U';
+const cars=[
+['Starter Kart',0,1.00,1.00,'#ffce45'],['Blue Bolt',180,1.08,1.02,'#38bdf8'],['Red Rocket',260,1.15,.92,'#ff5b63'],['Forest Buggy',320,.98,1.25,'#52d273'],['Purple Comet',400,1.18,.95,'#b58cff'],['Sunset GT',480,1.22,.91,'#ff9b54'],['Ice Racer',560,1.10,1.18,'#bdefff'],['Turbo Fox',650,1.25,.98,'#ff7bcb'],['Desert Drifter',740,1.12,1.30,'#e4c18c'],['Neon Phantom',850,1.30,1.05,'#67ffdd'],['Thunder Kart',960,1.35,.94,'#e7ecff'],['Jungle Jumper',1080,1.20,1.34,'#a2ec5b'],['Golden Racer',1220,1.38,1.08,'#ffd44d'],['Shadow X',1380,1.42,1.02,'#a4acc4'],['Volcano V8',1550,1.48,.90,'#ff7648'],['Crystal GT',1750,1.40,1.22,'#8df5ff'],['Hyper Nova',1980,1.52,1.05,'#f28bff'],['Royal Speedster',2250,1.57,1.12,'#ffdf9a'],['Galaxy Legend',2600,1.64,1.15,'#7d8cff'],['Champion X',3000,1.72,1.20,'#ffffff']
+];
+const missions=Array.from({length:40},(_,i)=>({id:i+1,name:['Kart-Einstieg','Kurven-König','Wald-Sprint','Küsten-Cup','Wüsten-Rallye','Schnee-Strecke','Neon-Nacht','Vulkan-Ring'][i%8]+' '+(i+1),laps:2+Math.floor(i/12),target:Math.max(34,65-i*.65),reward:100+i*25,unlock:i===0?0:80+i*22,road:((i%4)+1)}));
+const $=id=>document.getElementById(id);const canvas=$('game'),ctx=canvas.getContext('2d');
+let state={credits:250,unlocked:1,completed:[],owned:[0],car:0};try{state={...state,...JSON.parse(localStorage.getItem('kart3dSave')||'{}')}}catch(e){}
+let racing=false,raf=0,last=0,elapsed=0,progress=0,speed=0,lane=0,steer=0,keys={},mission=null,finishLine=0,roadOffset=0,hit=0;
+function save(){localStorage.setItem('kart3dSave',JSON.stringify(state));renderStats()}
+function renderStats(){$('credits').textContent=state.credits;$('credits2').textContent=state.credits;$('hudCredits').textContent='🪙 '+state.credits}
+function tabs(which){document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===which));['missions','cars','creditsTab'].forEach(id=>$(id).classList.toggle('hidden',id!==which))}
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>tabs(b.dataset.tab));
+function renderMissions(){$('missionGrid').innerHTML='';missions.forEach(m=>{let done=state.completed.includes(m.id),open=m.id<=state.unlocked,card=document.createElement('div');card.className='card';card.innerHTML='<strong>Mission '+m.id+' · '+m.name+'</strong><small>'+m.laps+' Runden · Zielzeit '+m.target+' s<br>Belohnung: '+m.reward+' Credits<br>'+(done?'✅ Geschafft':open?'🔓 Freigeschaltet':'🔒 Freischalten: '+m.unlock+' Credits')+'</small><button>'+(done?'Erneut fahren':open?'Rennen starten':'Mit Credits öffnen')+'</button>';card.querySelector('button').onclick=()=>{if(!open){if(state.credits<m.unlock){showMessage('Zu wenig Credits','Du brauchst '+(m.unlock-state.credits)+' weitere Credits.',[['Zurück zum Menü',()=>hideRace()]]);return}state.credits-=m.unlock;state.unlocked=Math.max(state.unlocked,m.id);save();renderMissions()}startRace(m)};$('missionGrid').append(card)})}
+function renderCars(){$('carGrid').innerHTML='';cars.forEach((c,i)=>{let owned=state.owned.includes(i),card=document.createElement('div');card.className='card';card.innerHTML='<strong>'+String(i+1).padStart(2,'0')+'. '+c[0]+'</strong><div style="height:12px;border-radius:8px;background:'+c[4]+';margin:12px 0"></div><small>Tempo '+Math.round(c[2]*100)+'% · Handling '+Math.round(c[3]*100)+'%<br>'+(owned?(state.car===i?'✅ Ausgewählt':'In Garage'):'Preis: '+c[1]+' Credits')+'</small><button>'+(owned?(state.car===i?'Ausgewählt':'Auswählen'):'Kaufen')+'</button>';card.querySelector('button').onclick=()=>{if(owned){state.car=i;save();renderCars()}else if(state.credits>=c[1]){state.credits-=c[1];state.owned.push(i);state.car=i;save();renderCars()}else showMessage('Zu wenig Credits','Dir fehlen '+(c[1]-state.credits)+' Credits. Gewinne Missionen oder öffne den Credits-Bereich.',[['Credits ansehen',()=>{hideRace();tabs('creditsTab')}],['Schließen',hideRace]])};$('carGrid').append(card)})}
+function resize(){canvas.width=innerWidth*devicePixelRatio;canvas.height=innerHeight*devicePixelRatio;ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0)}addEventListener('resize',resize);resize();
+function drawScene(t){let w=innerWidth,h=innerHeight;ctx.clearRect(0,0,w,h);
+let sky=ctx.createLinearGradient(0,0,0,h*.62);sky.addColorStop(0,'#48bce9');sky.addColorStop(1,'#d5f6ff');ctx.fillStyle=sky;ctx.fillRect(0,0,w,h);
+ctx.fillStyle='#5abf69';ctx.beginPath();ctx.moveTo(0,h*.48);for(let x=0;x<=w;x+=w/10)ctx.lineTo(x,h*(.42+Math.sin(x*.013+t*.0003)*.04));ctx.lineTo(w,h);ctx.lineTo(0,h);ctx.fill();
+let horizon=h*.43,base=h*1.15,center=w/2+lane*w*.25,roadW=w*(.13+Math.min(1,(t%5000)/5000)*.48);
+ctx.fillStyle='#5b6477';ctx.beginPath();ctx.moveTo(w/2-w*.04,horizon);ctx.lineTo(w/2+w*.04,horizon);ctx.lineTo(center+roadW,base);ctx.lineTo(center-roadW,base);ctx.closePath();ctx.fill();
+ctx.fillStyle='#f6f2d5';for(let i=0;i<14;i++){let z=((i/14+roadOffset)%1),y=horizon+(base-horizon)*z*z,x=w/2+(center-w/2)*z*z,ww=(w*.006+roadW*.025)*z;ctx.fillRect(x-ww/2,y,ww,Math.max(2,z*14))}
+for(let i=0;i<18;i++){let z=((i/18+roadOffset*.6)%1),y=horizon+(base-horizon)*z*z;let side=w*.05+roadW*1.12*z*z;let x1=center-side,x2=center+side;ctx.fillStyle=i%2?'#ffde49':'#ffffff';ctx.fillRect(x1-5*z,y,10*z+1,20*z+1);ctx.fillRect(x2-5*z,y,10*z+1,20*z+1)}
+// kart body
+let cw=Math.min(100,w*.16),ch=cw*.7,cx=w/2+lane*w*.25,cy=h*.78+Math.sin(t*.008)*2;
+ctx.fillStyle='#0005';ctx.beginPath();ctx.ellipse(cx,cy+ch*.43,cw*.55,ch*.17,0,0,Math.PI*2);ctx.fill();
+ctx.fillStyle='#202638';ctx.fillRect(cx-cw*.52,cy-ch*.05,cw*.2,ch*.45);ctx.fillRect(cx+cw*.32,cy-ch*.05,cw*.2,ch*.45);
+ctx.fillStyle=cars[state.car][4];ctx.beginPath();ctx.moveTo(cx-cw*.48,cy+ch*.2);ctx.lineTo(cx-cw*.37,cy-ch*.25);ctx.lineTo(cx-cw*.2,cy-ch*.45);ctx.lineTo(cx+cw*.2,cy-ch*.45);ctx.lineTo(cx+cw*.4,cy-ch*.2);ctx.lineTo(cx+cw*.5,cy+ch*.2);ctx.closePath();ctx.fill();
+ctx.fillStyle='#b6efff';ctx.beginPath();ctx.moveTo(cx-cw*.23,cy-ch*.18);ctx.lineTo(cx-cw*.13,cy-ch*.38);ctx.lineTo(cx+cw*.13,cy-ch*.38);ctx.lineTo(cx+cw*.26,cy-ch*.18);ctx.closePath();ctx.fill();
+ctx.fillStyle='#fff';ctx.fillRect(cx-cw*.35,cy+ch*.05,cw*.16,ch*.07);ctx.fillRect(cx+cw*.19,cy+ch*.05,cw*.16,ch*.07);
+}
+function loop(ts){if(!racing)return;let dt=Math.min(.05,(ts-last)/1000||0);last=ts;let car=cars[state.car];let gas=keys.ArrowUp||keys.w||keys.gas,brake=keys.ArrowDown||keys.s||keys.brake;speed+=((gas?1:0)-(brake?1.3:.16))*dt*car[2]*30;speed=Math.max(0,Math.min(100*car[2],speed));let direction=(keys.ArrowLeft||keys.a||keys.left?-1:0)+(keys.ArrowRight||keys.d||keys.right?1:0);lane+=direction*dt*1.25*car[3];lane=Math.max(-1.25,Math.min(1.25,lane));progress+=speed*dt*.17;elapsed+=dt;roadOffset=(roadOffset+dt*(.1+speed*.006))%1;
+drawScene(ts);$('hudLevel').textContent='Mission '+mission.id+'/40';$('hudTime').textContent='Zeit: '+elapsed.toFixed(1)+' s';$('hudLap').textContent='Fortschritt: '+Math.min(100,Math.floor(progress/finishLine*100))+'%';
+if(progress>=finishLine){finishRace(elapsed<=mission.target);return}raf=requestAnimationFrame(loop)}
+function startRace(m){mission=m;elapsed=0;progress=0;speed=0;lane=0;finishLine=450+ m.id*8;racing=true;$('menu').classList.add('hidden');$('hud').classList.remove('hidden');$('controls').classList.remove('hidden');$('hint').classList.remove('hidden');$('racePanel').classList.remove('hidden');$('message').classList.add('hidden');last=performance.now();cancelAnimationFrame(raf);raf=requestAnimationFrame(loop)}
+function showMessage(title,txt,buttons){$('message').classList.remove('hidden');$('msgTitle').textContent=title;$('msgText').textContent=txt;$('msgButtons').innerHTML='';buttons.forEach(([label,fn])=>{let b=document.createElement('button');b.textContent=label;b.onclick=fn;$('msgButtons').append(b)})}
+function hideRace(){racing=false;cancelAnimationFrame(raf);$('menu').classList.remove('hidden');$('hud').classList.add('hidden');$('controls').classList.add('hidden');$('hint').classList.add('hidden');$('racePanel').classList.add('hidden');$('message').classList.add('hidden');renderMissions();renderCars();renderStats()}
+function finishRace(won){racing=false;cancelAnimationFrame(raf);if(won){let bonus=mission.reward;if(!state.completed.includes(mission.id)){state.credits+=bonus;state.completed.push(mission.id);state.unlocked=Math.max(state.unlocked,Math.min(40,mission.id+1))}save();renderMissions();showMessage('🏆 Mission geschafft!', 'Du hast das Rennen in '+elapsed.toFixed(1)+' Sekunden beendet. Belohnung beim ersten Abschluss: '+bonus+' Credits.',[['Weiter',hideRace],['Nächste Mission',()=>{let next=missions.find(m=>m.id===mission.id+1);if(next)startRace(next);else hideRace()}]])}else{let cost=mission.unlock;showMessage('⏱️ Mission nicht geschafft','Deine Zeit: '+elapsed.toFixed(1)+' s. Zielzeit: '+mission.target+' s. Du kannst diese Mission für '+cost+' Credits freischalten, um sie erneut zu versuchen.',[['Mit Credits kaufen',()=>{if(state.credits>=cost){state.credits-=cost;save();startRace(mission)}else showMessage('Zu wenig Credits','Dir fehlen '+(cost-state.credits)+' Credits. Gewinne andere Missionen oder öffne PayPal.',[['Credits kaufen',()=>{hideRace();tabs('creditsTab')}],['Zurück',hideRace]])}],['Erneut versuchen',()=>startRace(mission)],['Menü',hideRace]])}}
+$('paypal').onclick=()=>window.open(PAYPAL,'_blank','noopener');
+function bindHold(id,key){let el=$(id);const on=e=>{e.preventDefault();keys[key]=true},off=e=>{e.preventDefault();keys[key]=false};el.addEventListener('pointerdown',on);['pointerup','pointercancel','pointerleave'].forEach(ev=>el.addEventListener(ev,off))}
+bindHold('left','left');bindHold('right','right');bindHold('gas','gas');bindHold('brake','brake');
+addEventListener('keydown',e=>{keys[e.key]=true;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key))e.preventDefault()});addEventListener('keyup',e=>keys[e.key]=false);addEventListener('blur',()=>keys={});
+renderStats();renderMissions();renderCars();
+})();
+</script>
+</body>
+</html>
